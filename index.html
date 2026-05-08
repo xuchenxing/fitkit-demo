@@ -1,0 +1,1666 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>FitKit - 智能健身工具箱</title>
+<style>
+:root {
+  --bg: #0f1117;
+  --surface: #1a1d27;
+  --surface2: #242836;
+  --border: #2e3345;
+  --text: #e8eaf0;
+  --text2: #9aa0b4;
+  --accent: #6c5ce7;
+  --accent2: #a29bfe;
+  --green: #00d2a0;
+  --yellow: #ffc048;
+  --red: #ff5e5e;
+  --radius: 16px;
+  --radius-sm: 10px;
+  --shadow: 0 4px 24px rgba(0,0,0,0.3);
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  height: 100dvh;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* ==================== App Shell ==================== */
+#app { display:flex; height:100dvh; }
+
+/* Sidebar */
+#sidebar {
+  width: 240px; min-width: 240px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  padding: 24px 16px;
+  z-index: 10;
+}
+#sidebar .logo {
+  font-size: 22px; font-weight: 800;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  margin-bottom: 32px; letter-spacing: -0.5px;
+}
+#sidebar .logo span { font-weight: 400; font-size: 14px; -webkit-text-fill-color: var(--text2); }
+
+.nav-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 16px; border-radius: var(--radius-sm);
+  cursor: pointer; transition: all 0.2s;
+  margin-bottom: 4px; font-size: 15px; color: var(--text2);
+  border: 1px solid transparent;
+}
+.nav-item:hover { background: var(--surface2); color: var(--text); }
+.nav-item.active { background: var(--surface2); color: var(--text); border-color: var(--border); }
+.nav-item .icon { font-size: 20px; width: 28px; text-align: center; }
+.nav-item .badge {
+  margin-left: auto; font-size: 11px;
+  background: var(--accent); color: #fff;
+  padding: 2px 8px; border-radius: 10px;
+}
+
+/* Main */
+#main { flex:1; overflow-y:auto; padding: 32px; }
+.page { display:none; }
+.page.active { display:block; }
+
+/* ==================== Toolbox Home ==================== */
+.tool-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+}
+.tool-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 24px;
+  cursor: pointer; transition: all 0.2s;
+}
+.tool-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: var(--shadow); }
+.tool-card .t-icon { font-size: 36px; margin-bottom: 12px; }
+.tool-card h3 { font-size: 17px; margin-bottom: 6px; }
+.tool-card p { font-size: 13px; color: var(--text2); line-height: 1.5; }
+
+/* ==================== Video Analysis ==================== */
+.video-container {
+  position: relative;
+  background: #000; border-radius: var(--radius);
+  overflow: hidden; aspect-ratio: 4/3; max-height: 65vh;
+}
+.video-container video,
+.video-container canvas {
+  position: absolute; top:0; left:0;
+  width: 100%; height: 100%; object-fit: contain;
+}
+.video-container canvas { z-index: 2; pointer-events: none; }
+
+.video-overlay {
+  position: absolute; top: 16px; left: 50%; transform: translateX(-50%);
+  z-index: 3; display: flex; gap: 12px; align-items: center;
+}
+.rep-counter {
+  background: rgba(0,0,0,0.75); backdrop-filter: blur(10px);
+  padding: 8px 20px; border-radius: 24px; font-size: 32px;
+  font-weight: 700; letter-spacing: -1px;
+}
+.phase-indicator {
+  background: rgba(0,0,0,0.75); backdrop-filter: blur(10px);
+  padding: 6px 16px; border-radius: 20px; font-size: 13px;
+  color: var(--text2);
+}
+.form-feedback {
+  position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
+  z-index: 3; font-size: 14px; font-weight: 600;
+  padding: 8px 20px; border-radius: 20px;
+  transition: all 0.3s;
+}
+.form-feedback.good { background: rgba(0,210,160,0.2); color: var(--green); }
+.form-feedback.warn { background: rgba(255,192,72,0.2); color: var(--yellow); }
+.form-feedback.bad { background: rgba(255,94,94,0.2); color: var(--red); }
+
+.controls-bar {
+  display: flex; gap: 12px; align-items: center;
+  margin-top: 16px; flex-wrap: wrap;
+}
+.exercise-select {
+  padding: 10px 16px; border-radius: var(--radius-sm);
+  background: var(--surface2); border: 1px solid var(--border);
+  color: var(--text); font-size: 14px; cursor: pointer;
+  font-family: inherit;
+}
+.btn {
+  padding: 10px 24px; border-radius: var(--radius-sm);
+  border: none; cursor: pointer; font-size: 14px; font-weight: 600;
+  font-family: inherit; transition: all 0.2s; color: #fff;
+}
+.btn-primary { background: var(--accent); }
+.btn-primary:hover { background: #5b4bd5; }
+.btn-danger { background: var(--red); }
+.btn-danger:hover { background: #e04848; }
+.btn-outline {
+  background: transparent; border: 1px solid var(--border); color: var(--text);
+}
+.btn-outline:hover { background: var(--surface2); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.status-dot {
+  display: inline-block; width: 8px; height: 8px;
+  border-radius: 50%; margin-right: 6px;
+}
+.status-dot.loading { background: var(--yellow); animation: pulse 1s infinite; }
+.status-dot.ready { background: var(--green); }
+.status-dot.error { background: var(--red); }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+.loading-overlay {
+  position: absolute; inset:0; z-index: 10;
+  background: rgba(0,0,0,0.6); display: flex;
+  flex-direction: column; align-items: center; justify-content: center;
+  gap: 12px;
+}
+.spinner {
+  width: 40px; height: 40px; border: 3px solid var(--border);
+  border-top-color: var(--accent); border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ==================== Timer ==================== */
+.timer-display {
+  font-size: 96px; font-weight: 200; text-align: center;
+  font-variant-numeric: tabular-nums; letter-spacing: -2px;
+  margin: 40px 0;
+}
+.timer-phase {
+  text-align: center; font-size: 18px; color: var(--accent2);
+  margin-bottom: 8px; font-weight: 600;
+}
+.timer-settings {
+  display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;
+}
+.timer-settings input {
+  width: 70px; padding: 10px; text-align: center;
+  border-radius: var(--radius-sm); background: var(--surface2);
+  border: 1px solid var(--border); color: var(--text);
+  font-size: 15px; font-family: inherit;
+}
+.timer-settings label { color: var(--text2); font-size: 13px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+
+/* ==================== Training Log ==================== */
+.log-list { display: flex; flex-direction: column; gap: 12px; }
+.log-entry {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px 20px;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.log-entry .log-info h4 { font-size: 15px; margin-bottom: 4px; }
+.log-entry .log-info span { font-size: 13px; color: var(--text2); }
+.log-entry .log-stats { font-size: 18px; font-weight: 700; color: var(--accent2); }
+.log-empty { text-align: center; padding: 60px 0; color: var(--text2); }
+
+/* ==================== Exercise Library ==================== */
+.exercise-list { display: flex; flex-direction: column; gap: 12px; }
+.exercise-item {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 20px;
+  cursor: pointer; transition: all 0.2s;
+}
+.exercise-item:hover { border-color: var(--accent); }
+.exercise-item h4 { font-size: 16px; margin-bottom: 6px; }
+.exercise-item .tags { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.exercise-item .tag {
+  font-size: 11px; background: var(--surface2); color: var(--text2);
+  padding: 4px 10px; border-radius: 12px;
+}
+.exercise-item .detail {
+  margin-top: 12px; padding-top: 12px;
+  border-top: 1px solid var(--border); font-size: 13px;
+  color: var(--text2); line-height: 1.7; display: none;
+}
+.exercise-item.expanded .detail { display: block; }
+
+/* ==================== Page Headers ==================== */
+.page-header { margin-bottom: 24px; }
+.page-header h2 { font-size: 24px; font-weight: 700; margin-bottom: 6px; }
+.page-header p { color: var(--text2); font-size: 14px; }
+
+/* ==================== Source Tabs & Panels ==================== */
+.source-tabs {
+  display: flex; gap: 4px; margin-bottom: 16px;
+  background: var(--surface); border-radius: var(--radius-sm);
+  padding: 4px;
+}
+.src-tab {
+  flex: 1; padding: 8px 12px; border: none;
+  background: transparent; color: var(--text2);
+  font-size: 13px; font-family: inherit; cursor: pointer;
+  border-radius: 8px; transition: all 0.2s; white-space: nowrap;
+}
+.src-tab:hover { color: var(--text); }
+.src-tab.active { background: var(--accent); color: #fff; }
+
+.source-panel { margin-bottom: 16px; padding: 16px; background: var(--surface); border-radius: var(--radius-sm); border: 1px solid var(--border); }
+
+.demo-card {
+  background: var(--surface2); border: 2px solid var(--border);
+  border-radius: var(--radius-sm); padding: 16px 20px;
+  cursor: pointer; transition: all 0.2s; text-align: center;
+  min-width: 120px;
+}
+.demo-card:hover { border-color: var(--accent); transform: translateY(-1px); }
+.demo-card.selected { border-color: var(--green); background: rgba(0,210,160,0.08); }
+.demo-thumb { font-size: 32px; margin-bottom: 8px; }
+.demo-label { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+.demo-src { font-size: 11px; color: var(--text2); }
+
+.upload-zone {
+  border: 2px dashed var(--border); border-radius: var(--radius-sm);
+  padding: 32px; text-align: center; cursor: pointer;
+  transition: all 0.2s; color: var(--text2);
+}
+.upload-zone:hover { border-color: var(--accent); background: var(--surface2); }
+
+.video-controls {
+  position: absolute; bottom: 12px; right: 12px; z-index: 3;
+  display: flex; align-items: center; gap: 4px;
+}
+
+/* ==================== Suggestion Box ==================== */
+.suggestion-box {
+  margin-top: 16px; background: var(--surface);
+  border: 1px solid var(--accent); border-radius: var(--radius);
+  overflow: hidden; animation: slideUp 0.3s ease;
+}
+@keyframes slideUp { from { opacity:0; transform:translateY(10px) } to { opacity:1; transform:translateY(0) } }
+.suggestion-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 14px 20px; background: var(--surface2);
+  font-weight: 700; font-size: 15px;
+}
+.suggestion-body { padding: 16px 20px; }
+.suggestion-body .s-item {
+  padding: 10px 14px; margin-bottom: 8px;
+  background: var(--surface2); border-radius: var(--radius-sm);
+  font-size: 14px; line-height: 1.6;
+}
+.suggestion-body .s-good { color: var(--green); font-weight: 600; }
+.suggestion-body .s-review-item {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 6px 0; border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.suggestion-body .s-review-item:last-child { border-bottom: none; }
+.s-error-count { color: var(--red); font-weight: 600; }
+
+/* ==================== Mobile ==================== */
+@media (max-width: 768px) {
+  #sidebar { width: 72px; min-width: 72px; padding: 16px 8px; }
+  #sidebar .logo { font-size: 0; }
+  #sidebar .logo::first-letter { font-size: 20px; }
+  .nav-item { padding: 12px 8px; justify-content: center; font-size: 0; }
+  .nav-item .icon { margin: 0; }
+  .nav-item .badge { display: none; }
+  #main { padding: 16px; }
+  .tool-grid { grid-template-columns: 1fr; }
+  .timer-display { font-size: 56px; }
+  .video-container { aspect-ratio: 3/4; max-height: 50vh; }
+}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <!-- Sidebar Navigation -->
+  <nav id="sidebar">
+    <div class="logo">FitKit <span>健身工具箱</span></div>
+    <div class="nav-item active" data-page="home">
+      <span class="icon">🏠</span> 工具箱
+    </div>
+    <div class="nav-item" data-page="analysis">
+      <span class="icon">🎬</span> 视频分析
+      <span class="badge">AI</span>
+    </div>
+    <div class="nav-item" data-page="timer">
+      <span class="icon">⏱️</span> 间隔计时
+    </div>
+    <div class="nav-item" data-page="log">
+      <span class="icon">📊</span> 训练记录
+    </div>
+    <div class="nav-item" data-page="library">
+      <span class="icon">📖</span> 动作库
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main id="main">
+
+    <!-- ========== Home Page ========== -->
+    <section class="page active" id="page-home">
+      <div class="page-header">
+        <h2>FitKit 工具箱</h2>
+        <p>你的私人健身伴侣 · 所有数据均在本地处理，无需联网</p>
+      </div>
+      <div class="tool-grid">
+        <div class="tool-card" onclick="navigateTo('analysis')">
+          <div class="t-icon">🎬</div>
+          <h3>视频动作分析</h3>
+          <p>摄像头实时姿态检测，AI计数与形态评估。支持深蹲、弯举、推举等动作。</p>
+        </div>
+        <div class="tool-card" onclick="navigateTo('timer')">
+          <div class="t-icon">⏱️</div>
+          <h3>间隔计时器</h3>
+          <p>自定义训练/休息间隔，循环提醒，适合HIIT和循环训练。</p>
+        </div>
+        <div class="tool-card" onclick="navigateTo('log')">
+          <div class="t-icon">📊</div>
+          <h3>训练记录</h3>
+          <p>自动记录每次训练详情，查看历史趋势，追踪进步轨迹。</p>
+        </div>
+        <div class="tool-card" onclick="navigateTo('library')">
+          <div class="t-icon">📖</div>
+          <h3>动作库</h3>
+          <p>标准动作要领与常见错误对照，掌握每个动作的正确形态。</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== Video Analysis Page ========== -->
+    <section class="page" id="page-analysis">
+      <div class="page-header">
+        <h2>🎬 视频动作分析</h2>
+        <p>基于端侧AI引擎（MoveNet），实时姿态估计 · 完全离线可用</p>
+      </div>
+
+      <!-- Source Selector -->
+      <div class="source-tabs" id="sourceTabs">
+        <button class="src-tab active" data-src="camera">📷 摄像头</button>
+        <button class="src-tab" data-src="demo">🎬 示例视频</button>
+        <button class="src-tab" data-src="upload">📁 上传文件</button>
+        <button class="src-tab" data-src="url">🔗 视频URL</button>
+      </div>
+
+      <!-- Demo Videos Panel -->
+      <div class="source-panel" id="demoPanel" style="display:none">
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px">
+          <div class="demo-card" data-video="squat" data-url="https://assets.mixkit.co/videos/preview/mixkit-a-young-woman-dressed-in-a-snugly-fitting-black-outfit-doing-52117-large.mp4">
+            <div class="demo-thumb">🏋️</div>
+            <div class="demo-label">深蹲</div>
+            <div class="demo-src">Mixkit · 需海外网络</div>
+          </div>
+        </div>
+        <div style="font-size:12px;color:var(--text2);line-height:1.6">
+          ⚠️ demo视频托管在Mixkit，国内可能无法加载。<br>
+          💡 <b>推荐做法</b>：切换到"<b>📁 上传文件</b>"标签，录一段自己或网上下载的训练视频来分析。<br>
+          免费健身视频可搜索：Pexels、Pixabay、爱给网(aigei.com)、新片场(xinpianchang.com)
+        </div>
+      </div>
+
+      <!-- Upload Panel -->
+      <div class="source-panel" id="uploadPanel" style="display:none">
+        <div class="upload-zone" id="uploadZone">
+          <div style="font-size:32px;margin-bottom:8px">📁</div>
+          <div>点击或拖拽视频文件到此处</div>
+          <div style="font-size:12px;color:var(--text2);margin-top:4px">支持 MP4 / WebM / MOV</div>
+          <input type="file" id="fileInput" accept="video/*" style="display:none">
+        </div>
+      </div>
+
+      <!-- URL Panel -->
+      <div class="source-panel" id="urlPanel" style="display:none">
+        <div style="display:flex;gap:8px">
+          <input type="text" id="urlInput" placeholder="粘贴视频直链 (https://...mp4)" style="flex:1;padding:10px 14px;border-radius:var(--radius-sm);background:var(--surface2);border:1px solid var(--border);color:var(--text);font-size:14px;font-family:inherit">
+          <button class="btn btn-primary" onclick="loadUrlVideo()">加载</button>
+        </div>
+      </div>
+
+      <div class="video-container" id="videoContainer">
+        <video id="video" playsinline autoplay loop></video>
+        <canvas id="canvas"></canvas>
+        <div class="video-overlay">
+          <div class="rep-counter" id="repCounter">0</div>
+          <div class="phase-indicator" id="phaseIndicator">准备开始</div>
+        </div>
+        <div class="video-controls" id="videoControls" style="display:none">
+          <button class="btn btn-outline" id="btnPlayPause" onclick="togglePlayPause()" style="padding:6px 16px;font-size:12px">⏯</button>
+          <span id="videoTime" style="font-size:12px;color:var(--text2);margin:0 8px">00:00 / 00:00</span>
+          <button class="btn btn-outline" id="btnLoop" onclick="toggleLoop()" style="padding:6px 12px;font-size:12px">🔁 循环</button>
+        </div>
+        <div class="form-feedback" id="formFeedback" style="display:none"></div>
+        <div class="loading-overlay" id="loadingOverlay">
+          <div class="spinner"></div>
+          <div style="color:var(--text2)">正在加载姿态检测模型...</div>
+          <div style="font-size:12px;color:var(--text2)">首次加载需下载约10MB模型文件，后续将使用缓存</div>
+        </div>
+      </div>
+
+      <div class="controls-bar">
+        <select class="exercise-select" id="exerciseSelect">
+          <option value="squat">🏋️ 深蹲</option>
+          <option value="curl">💪 哑铃弯举</option>
+          <option value="press">🔼 肩上推举</option>
+        </select>
+        <button class="btn btn-primary" id="btnStart" onclick="startAnalysis()">▶ 开始分析</button>
+        <button class="btn btn-danger" id="btnStop" onclick="stopAnalysis()" disabled>⏹ 停止</button>
+        <button class="btn btn-outline" id="btnReset" onclick="resetCounter()">↺ 归零计数</button>
+        <span id="modelStatus"><span class="status-dot loading"></span>模型加载中...</span>
+      </div>
+
+      <!-- Debug status -->
+      <div id="debugStatus" style="margin-top:8px;padding:8px 12px;background:var(--surface);border-radius:8px;font-size:11px;font-family:monospace;color:var(--text2);line-height:1.6;display:none"></div>
+
+      <div style="margin-top:12px;font-size:12px;color:var(--text2)">
+        💡 摄像头模式：请确保全身可见，光线充足。 | 视频模式：分析结束后可查看逐帧回放。
+      </div>
+
+      <!-- Post-analysis improvement suggestions -->
+      <div class="suggestion-box" id="suggestionBox" style="display:none">
+        <div class="suggestion-header">
+          <span>📋 动作分析与改进建议</span>
+          <button class="btn btn-outline" style="padding:4px 12px;font-size:12px" onclick="document.getElementById('suggestionBox').style.display='none'">✕</button>
+        </div>
+        <div class="suggestion-body" id="suggestionBody"></div>
+      </div>
+    </section>
+
+    <!-- ========== Timer Page ========== -->
+    <section class="page" id="page-timer">
+      <div class="page-header">
+        <h2>⏱️ 间隔计时器</h2>
+        <p>自定义训练与休息间隔，循环提醒</p>
+      </div>
+      <div class="timer-phase" id="timerPhase">准备</div>
+      <div class="timer-display" id="timerDisplay">00:00</div>
+      <div class="timer-settings">
+        <label>训练 (秒) <input type="number" id="workTime" value="30" min="1" max="600"></label>
+        <label>休息 (秒) <input type="number" id="restTime" value="15" min="1" max="600"></label>
+        <label>循环 <input type="number" id="rounds" value="5" min="1" max="99"></label>
+      </div>
+      <div class="controls-bar" style="justify-content:center; margin-top:24px;">
+        <button class="btn btn-primary" id="timerBtnStart" onclick="startTimer()">▶ 开始</button>
+        <button class="btn btn-outline" onclick="pauseTimer()">⏯ 暂停</button>
+        <button class="btn btn-outline" onclick="resetTimer()">↺ 重置</button>
+      </div>
+      <div style="text-align:center;margin-top:12px;color:var(--text2);font-size:13px" id="timerRoundInfo"></div>
+    </section>
+
+    <!-- ========== Training Log Page ========== -->
+    <section class="page" id="page-log">
+      <div class="page-header">
+        <h2>📊 训练记录</h2>
+        <p>自动记录每次视频分析的训练数据</p>
+        <button class="btn btn-outline" style="margin-top:12px" onclick="clearLogs()">清空记录</button>
+      </div>
+      <div class="log-list" id="logList">
+        <div class="log-empty">暂无训练记录，去完成一次视频分析吧</div>
+      </div>
+    </section>
+
+    <!-- ========== Exercise Library Page ========== -->
+    <section class="page" id="page-library">
+      <div class="page-header">
+        <h2>📖 动作库</h2>
+        <p>标准动作要领与常见错误对照</p>
+      </div>
+      <div class="exercise-list" id="exerciseList">
+        <div class="exercise-item" onclick="this.classList.toggle('expanded')">
+          <h4>🏋️ 深蹲 (Bodyweight Squat)</h4>
+          <p style="color:var(--text2);font-size:13px">下肢复合动作，锻炼股四头肌、臀大肌</p>
+          <div class="tags"><span class="tag">下肢</span><span class="tag">复合动作</span><span class="tag">自重</span></div>
+          <div class="detail">
+            <strong>要点：</strong>双脚与肩同宽，核心收紧，下蹲时髋部后移，膝盖与脚尖方向一致，大腿低于水平线，保持背部挺直。<br><br>
+            <strong>常见错误：</strong>膝内扣、脚跟离地、弓背、下蹲深度不足。
+          </div>
+        </div>
+        <div class="exercise-item" onclick="this.classList.toggle('expanded')">
+          <h4>💪 哑铃弯举 (Dumbbell Curl)</h4>
+          <p style="color:var(--text2);font-size:13px">肱二头肌孤立训练</p>
+          <div class="tags"><span class="tag">上肢</span><span class="tag">孤立动作</span><span class="tag">器械</span></div>
+          <div class="detail">
+            <strong>要点：</strong>站姿或坐姿，双臂自然下垂，保持肘部固定于身体两侧，弯举时肘不移动，顶峰收缩，缓慢下放。<br><br>
+            <strong>常见错误：</strong>借力甩动、肘部前移、下放过快、半程动作。
+          </div>
+        </div>
+        <div class="exercise-item" onclick="this.classList.toggle('expanded')">
+          <h4>🔼 肩上推举 (Shoulder Press)</h4>
+          <p style="color:var(--text2);font-size:13px">三角肌前束与中束训练</p>
+          <div class="tags"><span class="tag">上肢</span><span class="tag">复合动作</span><span class="tag">器械</span></div>
+          <div class="detail">
+            <strong>要点：</strong>坐姿或站姿，核心收紧避免过度弓腰，推举时肘部在肩正下方开始，向上推至手臂伸直但不锁死，控制下落。<br><br>
+            <strong>常见错误：</strong>过度后仰、耸肩、下落失控、半程推举。
+          </div>
+        </div>
+        <div class="exercise-item" onclick="this.classList.toggle('expanded')">
+          <h4>🤲 俯卧撑 (Push-up)</h4>
+          <p style="color:var(--text2);font-size:13px">上肢推力训练，锻炼胸肌、三角肌前束、肱三头肌</p>
+          <div class="tags"><span class="tag">上肢</span><span class="tag">复合动作</span><span class="tag">自重</span></div>
+          <div class="detail">
+            <strong>要点：</strong>身体呈一条直线，核心收紧，手略宽于肩，下降时胸部贴近地面，肘部约45度。<br><br>
+            <strong>常见错误：</strong>塌腰、耸肩、肘部过度外展、下降深度不足。
+          </div>
+        </div>
+        <div class="exercise-item" onclick="this.classList.toggle('expanded')">
+          <h4>🦵 弓步蹲 (Lunge)</h4>
+          <p style="color:var(--text2);font-size:13px">下肢单侧训练，改善平衡与对称性</p>
+          <div class="tags"><span class="tag">下肢</span><span class="tag">单侧</span><span class="tag">自重</span></div>
+          <div class="detail">
+            <strong>要点：</strong>前脚平踏，后脚脚尖着地，下蹲时前膝约90度，后膝接近地面但不触碰，保持躯干直立。<br><br>
+            <strong>常见错误：</strong>前膝过脚尖、躯干前倾、步幅过小、重心不稳。
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- TensorFlow.js - 国内用户可替换为 jsd.onmicrosoft.cn 镜像 -->
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.17.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@2.1.3/dist/pose-detection.min.js"></script>
+<!-- 国内加速备用（如主CDN加载失败请切换）:
+<script src="https://jsd.onmicrosoft.cn/npm/@tensorflow/tfjs@4.17.0/dist/tf.min.js"></script>
+<script src="https://jsd.onmicrosoft.cn/npm/@tensorflow-models/pose-detection@2.1.3/dist/pose-detection.min.js"></script>
+-->
+
+<script>
+// ==================== App State ====================
+const S = {
+  currentPage: 'home',
+  // video analysis
+  detector: null,
+  cameraStream: null,
+  isRunning: false,
+  animFrame: null,
+  repCount: 0,
+  repState: 'idle',
+  lastPhase: '',
+  phaseSustain: 0,
+  feedbackTimer: null,
+  // video source
+  videoSource: 'camera', // camera | demo | upload | url
+  currentVideoUrl: null,
+  videoLoop: true,
+  videoFile: null,
+  // timer
+  timerInterval: null,
+  timerRunning: false,
+  timerRemaining: 0,
+  timerPhase: 'work',
+  currentRound: 0,
+  totalRounds: 5,
+};
+
+// ==================== Navigation ====================
+function navigateTo(page) {
+  S.currentPage = page;
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => {
+    n.classList.toggle('active', n.dataset.page === page);
+  });
+  if (page === 'log') renderLogs();
+}
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', () => navigateTo(item.dataset.page));
+});
+
+// ==================== Source Switching ====================
+document.querySelectorAll('.src-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    if (S.isRunning) stopAnalysis();
+    document.querySelectorAll('.src-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    S.videoSource = tab.dataset.src;
+    // Show/hide panels
+    document.getElementById('demoPanel').style.display = S.videoSource === 'demo' ? 'block' : 'none';
+    document.getElementById('uploadPanel').style.display = S.videoSource === 'upload' ? 'block' : 'none';
+    document.getElementById('urlPanel').style.display = S.videoSource === 'url' ? 'block' : 'none';
+    document.getElementById('videoControls').style.display = S.videoSource !== 'camera' ? 'flex' : 'none';
+    // Reset video
+    resetVideoSource();
+    if (S.videoSource === 'camera') {
+      videoEl.setAttribute('autoplay', '');
+      videoEl.loop = false;
+    } else {
+      videoEl.removeAttribute('autoplay');
+      videoEl.loop = S.videoLoop;
+    }
+    updateStartButton();
+  });
+});
+
+// Demo video card click
+document.querySelectorAll('.demo-card').forEach(card => {
+  card.addEventListener('click', () => {
+    document.querySelectorAll('.demo-card').forEach(c => c.classList.remove('selected'));
+    card.classList.add('selected');
+    const url = card.dataset.url;
+    S.currentVideoUrl = url;
+    loadVideoFromUrl(url);
+  });
+});
+
+// File upload
+const uploadZone = document.getElementById('uploadZone');
+const fileInput = document.getElementById('fileInput');
+uploadZone.addEventListener('click', () => fileInput.click());
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.style.borderColor = 'var(--accent)'; });
+uploadZone.addEventListener('dragleave', () => { uploadZone.style.borderColor = 'var(--border)'; });
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadZone.style.borderColor = 'var(--border)';
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('video/')) loadVideoFile(file);
+});
+fileInput.addEventListener('change', () => {
+  const file = fileInput.files[0];
+  if (file) loadVideoFile(file);
+});
+
+// URL load
+document.getElementById('urlInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') loadUrlVideo();
+});
+
+async function loadVideoFromUrl(url) {
+  try {
+    stopCamera();
+    videoEl.src = url;
+    videoEl.loop = S.videoLoop;
+    S.currentVideoUrl = url;
+    phaseEl.textContent = '视频已加载 · 点击开始分析';
+    updateStartButton();
+  } catch (e) {
+    alert('加载视频失败：' + e.message);
+  }
+}
+
+function loadVideoFile(file) {
+  stopCamera();
+  const url = URL.createObjectURL(file);
+  videoEl.src = url;
+  videoEl.loop = S.videoLoop;
+  S.videoFile = file;
+  S.currentVideoUrl = url;
+  uploadZone.innerHTML = '<div style="font-size:14px;color:var(--green)">✅ ' + file.name + '</div><div style="font-size:11px;color:var(--text2)">' + (file.size / 1024 / 1024).toFixed(1) + ' MB</div>';
+  phaseEl.textContent = '视频已加载 · 点击开始分析';
+  updateStartButton();
+}
+
+async function loadUrlVideo() {
+  const url = document.getElementById('urlInput').value.trim();
+  if (!url) return;
+  await loadVideoFromUrl(url);
+}
+
+function resetVideoSource() {
+  videoEl.src = '';
+  videoEl.removeAttribute('src');
+  if (S.videoFile) { URL.revokeObjectURL(S.currentVideoUrl); S.videoFile = null; }
+  S.currentVideoUrl = null;
+  document.querySelectorAll('.demo-card').forEach(c => c.classList.remove('selected'));
+  document.getElementById('urlInput').value = '';
+  uploadZone.innerHTML = '<div style="font-size:32px;margin-bottom:8px">📁</div><div>点击或拖拽视频文件到此处</div><div style="font-size:12px;color:var(--text2);margin-top:4px">支持 MP4 / WebM / MOV</div>';
+  phaseEl.textContent = '准备开始';
+}
+
+function updateStartButton() {
+  const btn = document.getElementById('btnStart');
+  if (S.videoSource === 'camera') {
+    btn.disabled = !S.detector;
+  } else {
+    btn.disabled = !S.detector || !S.currentVideoUrl;
+  }
+}
+
+// Playback controls
+function togglePlayPause() {
+  if (videoEl.paused) videoEl.play();
+  else videoEl.pause();
+}
+function toggleLoop() {
+  S.videoLoop = !S.videoLoop;
+  videoEl.loop = S.videoLoop;
+  document.getElementById('btnLoop').textContent = S.videoLoop ? '🔁 循环' : '▶️ 单次';
+}
+
+// Update video time display
+function updateVideoTime() {
+  const el = document.getElementById('videoTime');
+  if (!el || S.videoSource === 'camera') return;
+  const cur = videoEl.currentTime || 0;
+  const dur = videoEl.duration || 0;
+  if (dur) {
+    el.textContent = fmtTime(cur) + ' / ' + fmtTime(dur);
+  }
+}
+function fmtTime(s) {
+  const m = Math.floor(s / 60);
+  const sec = Math.floor(s % 60);
+  return String(m).padStart(2,'0') + ':' + String(sec).padStart(2,'0');
+}
+
+// ==================== Video Analysis Engine ====================
+const videoEl = document.getElementById('video');
+const canvasEl = document.getElementById('canvas');
+const ctx = canvasEl.getContext('2d');
+const repCounterEl = document.getElementById('repCounter');
+const phaseEl = document.getElementById('phaseIndicator');
+const feedbackEl = document.getElementById('formFeedback');
+const loadingEl = document.getElementById('loadingOverlay');
+const statusEl = document.getElementById('modelStatus');
+
+// Joint indices for MoveNet (COCO 17 keypoints)
+const KP = {
+  NOSE:0, LEFT_EYE:1, RIGHT_EYE:2, LEFT_EAR:3, RIGHT_EAR:4,
+  LEFT_SHOULDER:5, RIGHT_SHOULDER:6, LEFT_ELBOW:7, RIGHT_ELBOW:8,
+  LEFT_WRIST:9, RIGHT_WRIST:10, LEFT_HIP:11, RIGHT_HIP:12,
+  LEFT_KNEE:13, RIGHT_KNEE:14, LEFT_ANKLE:15, RIGHT_ANKLE:16
+};
+
+// Pairs for skeleton drawing
+const SKELETON = [
+  [KP.LEFT_SHOULDER, KP.RIGHT_SHOULDER], [KP.LEFT_SHOULDER, KP.LEFT_ELBOW],
+  [KP.LEFT_ELBOW, KP.LEFT_WRIST], [KP.RIGHT_SHOULDER, KP.RIGHT_ELBOW],
+  [KP.RIGHT_ELBOW, KP.RIGHT_WRIST], [KP.LEFT_SHOULDER, KP.LEFT_HIP],
+  [KP.RIGHT_SHOULDER, KP.RIGHT_HIP], [KP.LEFT_HIP, KP.RIGHT_HIP],
+  [KP.LEFT_HIP, KP.LEFT_KNEE], [KP.LEFT_KNEE, KP.LEFT_ANKLE],
+  [KP.RIGHT_HIP, KP.RIGHT_KNEE], [KP.RIGHT_KNEE, KP.RIGHT_ANKLE],
+];
+
+// Load MoveNet model
+// modelUrl: optional self-hosted model path (needed if tfhub.dev is blocked)
+const MODEL_CONFIG = {
+  modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING,
+  enableSmoothing: true,
+  minPoseScore: 0.2,  // lowered threshold for better detection
+  // 国内用户：下载模型放到服务器后，取消下行注释并填入地址
+  // 模型下载: https://www.kaggle.com/models/google/movenet/tfJs/singlepose-lightning/4
+  // modelUrl: 'https://your-server.com/movenet/model.json',
+};
+
+let modelLoading = false;
+
+async function loadModel() {
+  if (modelLoading) return;
+  modelLoading = true;
+  try {
+    loadingEl.style.display = 'flex';
+    loadingEl.innerHTML = '<div class="spinner"></div><div style="color:var(--text2)">正在加载姿态检测模型...</div><div style="font-size:12px;color:var(--text2)">首次使用需下载约10MB，请耐心等待</div>';
+    await tf.setBackend('webgl');
+    await tf.ready();
+    S.detector = await poseDetection.createDetector(
+      poseDetection.SupportedModels.MoveNet,
+      MODEL_CONFIG
+    );
+    loadingEl.style.display = 'none';
+    statusEl.innerHTML = '<span class="status-dot ready"></span>模型就绪 · WebGL';
+    console.log('FitKit: MoveNet model loaded successfully');
+    debugInfo['模型'] = '已加载';
+    updateDebug();
+    updateStartButton();
+  } catch (e) {
+    modelLoading = false;
+    console.error('FitKit: Model load failed:', e);
+    loadingEl.style.display = 'none';
+    const msg = e.message || '';
+    let hint = '';
+    if (msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('load') || msg.includes('http')) {
+      hint = '<br><br>⚠️ 模型下载失败，可能原因：<br>'
+        + '1. 网络受限无法访问 tfhub.dev（国内常见）<br>'
+        + '2. 需要自托管模型文件<br><br>'
+        + '📥 <b>解决方案</b>：从 Kaggle 下载模型'
+        + '→ 解压得到 model.json + .bin → 上传到你的服务器或 OSS<br>'
+        + '→ 在代码中设置 MODEL_CONFIG.modelUrl<br><br>'
+        + '🔧 <b>CDN切换</b>：将页面中 jsdelivr 替换为 jsd.onmicrosoft.cn';
+    } else if (msg.includes('WebGL') || msg.includes('backend')) {
+      hint = '<br><br>⚠️ WebGL 不可用，请检查浏览器是否支持 WebGL<br>'
+        + '尝试使用 Chrome/Edge 浏览器，或更新显卡驱动';
+    } else {
+      hint = '<br><br>错误详情：' + msg;
+    }
+    statusEl.innerHTML = '<span class="status-dot error"></span>模型加载失败' + hint;
+    debugInfo['模型'] = '失败';
+    updateDebug();
+  }
+}
+
+// Start camera
+async function startCamera() {
+  if (S.cameraStream) return;
+  try {
+    S.cameraStream = await navigator.mediaDevices.getUserMedia({
+      video: { width: 640, height: 480, facingMode: 'user' },
+      audio: false
+    });
+    videoEl.srcObject = S.cameraStream;
+    await videoEl.play();
+    await new Promise(r => videoEl.onloadedmetadata = r);
+    canvasEl.width = videoEl.videoWidth;
+    canvasEl.height = videoEl.videoHeight;
+  } catch (e) {
+    alert('无法访问摄像头：' + e.message + '\n请确保已授予摄像头权限。');
+    throw e;
+  }
+}
+
+// Start video file playback
+async function startVideoPlayback() {
+  if (S.videoSource === 'camera') return;
+  if (!videoEl.src && S.currentVideoUrl) {
+    videoEl.src = S.currentVideoUrl;
+  }
+  if (!videoEl.src) throw new Error('没有加载视频，请先选择或上传视频文件');
+  videoEl.loop = S.videoLoop;
+  videoEl.currentTime = 0;
+  videoEl.muted = true; // 静音避免 autoplay 限制
+
+  // Wait for metadata FIRST (before play, in case it was already loaded)
+  if (videoEl.readyState < 2) {
+    await new Promise((resolve, reject) => {
+      videoEl.onloadedmetadata = resolve;
+      videoEl.onerror = () => reject(new Error('视频加载失败，请检查文件格式'));
+      // Timeout after 10s
+      setTimeout(() => reject(new Error('视频加载超时')), 10000);
+    });
+  }
+
+  // Now play
+  try {
+    await videoEl.play();
+  } catch (e) {
+    // Autoplay might be blocked; that's OK for detection (we read frames anyway)
+    console.warn('Video autoplay blocked, but detection will still run:', e.message);
+    phaseEl.textContent = '点击视频画面播放';
+  }
+
+  // Set canvas size
+  if (videoEl.videoWidth && videoEl.videoHeight) {
+    canvasEl.width = videoEl.videoWidth;
+    canvasEl.height = videoEl.videoHeight;
+  } else {
+    // Fallback
+    canvasEl.width = 640;
+    canvasEl.height = 480;
+    console.warn('Video dimensions unknown, using fallback 640x480');
+  }
+}
+
+// Stop camera
+function stopCamera() {
+  if (S.cameraStream) {
+    S.cameraStream.getTracks().forEach(t => t.stop());
+    S.cameraStream = null;
+    videoEl.srcObject = null;
+  }
+  if (S.videoSource !== 'camera') {
+    videoEl.pause();
+  }
+}
+
+// Angle between three points (in degrees)
+function angleBetween(a, b, c) {
+  const ab = { x: a.x - b.x, y: a.y - b.y };
+  const cb = { x: c.x - b.x, y: c.y - b.y };
+  const dot = ab.x * cb.x + ab.y * cb.y;
+  const cross = ab.x * cb.y - ab.y * cb.x;
+  return Math.abs(Math.atan2(cross, dot) * 180 / Math.PI);
+}
+
+// Vertical angle from horizontal (for push-up body line check)
+function verticalAngle(a, b) {
+  return Math.abs(Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI);
+}
+
+// ==================== Exercise State Machines ====================
+// Debounce: require a state to persist for DEBOUNCE_FRAMES before transition
+const DEBOUNCE_FRAMES = 4;
+
+// Global form error tracker for post-analysis report
+const formErrors = { squat: {}, curl: {}, press: {} };
+
+const ExerciseAnalyzers = {
+  squat: {
+    name: '深蹲',
+    // Biomechanical targets
+    targets: {
+      kneeBottom: 85,    // target knee angle at bottom (degrees)
+      kneeTop: 165,      // target knee angle at top
+      hipAngleMin: 60,   // hip should flex to at least this much (smaller = more flexion)
+      torsoMax: 0.35,    // max torso lean ratio
+      valgusMax: 0.12,   // max knee valgus ratio
+      depthReq: 0.05,    // hip must be at least this much below knee (ratio)
+    },
+    analyze(keypoints, prevState) {
+      const lh = keypoints[KP.LEFT_HIP]; const lk = keypoints[KP.LEFT_KNEE]; const la = keypoints[KP.LEFT_ANKLE];
+      const rh = keypoints[KP.RIGHT_HIP]; const rk = keypoints[KP.RIGHT_KNEE]; const ra = keypoints[KP.RIGHT_ANKLE];
+      const ls = keypoints[KP.LEFT_SHOULDER]; const rs = keypoints[KP.RIGHT_SHOULDER];
+
+      if (!lh || !lk || !la || !rh || !rk || !ra || !ls || !rs) return null;
+      if ([lh,lk,la,rh,rk,ra,ls,rs].some(k => k.score < 0.3)) return null;
+
+      // --- Key biomechanical measurements ---
+      const leftKneeAngle = angleBetween(lh, lk, la);
+      const rightKneeAngle = angleBetween(rh, rk, ra);
+      const avgKneeAngle = (leftKneeAngle + rightKneeAngle) / 2;
+
+      // Hip angle (shoulder-hip-knee): measures hip flexion — lower = deeper hip hinge
+      const leftHipAngle = angleBetween(ls, lh, lk);
+      const rightHipAngle = angleBetween(rs, rh, rk);
+      const avgHipAngle = (leftHipAngle + rightHipAngle) / 2;
+
+      // Torso lean (shoulder-hip segment vs vertical)
+      const midHip = { x: (lh.x + rh.x) / 2, y: (lh.y + rh.y) / 2 };
+      const midShoulder = { x: (ls.x + rs.x) / 2, y: (ls.y + rs.y) / 2 };
+      const torsoLean = Math.abs(midShoulder.x - midHip.x) / Math.max(1, Math.abs(midShoulder.y - midHip.y));
+
+      // Knee valgus: knee deviation from hip-ankle alignment line
+      const leftValgus = Math.abs((lk.x - lh.x) - (la.x - lh.x) * 0.5) / Math.max(1, Math.abs(lh.y - la.y));
+      const rightValgus = Math.abs((rk.x - rh.x) - (ra.x - rh.x) * 0.5) / Math.max(1, Math.abs(rh.y - ra.y));
+
+      // Squat depth: is hip below knee? (in image coords, y-down, so hip.y > knee.y = below)
+      const hipBelowKnee = midHip.y > lk.y;
+
+      // Hip-knee coordination: during descent, hip angle should decrease WITH knee angle
+      // If knee angle drops fast but hip angle stays high → "knee-first" pattern (wrong)
+      const hipKneeRatio = prevState ? (prevState.hipAngle - avgHipAngle) / Math.max(0.1, prevState.kneeAngle - avgKneeAngle) : 1;
+
+      // --- Phase detection ---
+      let rawPhase;
+      if (avgKneeAngle > 155) rawPhase = 'UP';
+      else if (avgKneeAngle < this.targets.kneeBottom) rawPhase = 'BOTTOM';
+      else if (avgKneeAngle <= 155 && avgKneeAngle >= this.targets.kneeBottom) {
+        if (!prevState || prevState.phase === 'UP' || prevState.phase === 'DESCENDING') rawPhase = 'DESCENDING';
+        else rawPhase = 'ASCENDING';
+      } else rawPhase = prevState?.phase || 'UP';
+
+      // Debounce
+      const prevDebounceTarget = prevState?.debounceTarget;
+      let phase = prevState?.phase || 'UP';
+      let debounce = (prevDebounceTarget === rawPhase) ? (prevState?.debounce || 0) + 1 : 1;
+      if (debounce >= DEBOUNCE_FRAMES) { phase = rawPhase; debounce = 0; }
+      const debounceTarget = rawPhase;
+
+      // --- Form analysis with prioritized feedback ---
+      let feedback = null, feedbackType = '', errorCodes = [];
+
+      // 1. Knee valgus (most dangerous — check first)
+      if (leftValgus > this.targets.valgusMax || rightValgus > this.targets.valgusMax) {
+        errorCodes.push('knee_valgus');
+        feedback = '膝内扣！主动向外撑开膝盖，对齐脚尖方向';
+        feedbackType = 'bad';
+      }
+      // 2. Excessive torso lean (butt wink / good morning squat)
+      if (torsoLean > this.targets.torsoMax && phase === 'BOTTOM') {
+        errorCodes.push('torso_lean');
+        if (!feedback) { feedback = '背部过于前倾，挺胸抬头，核心收紧'; feedbackType = 'warn'; }
+      }
+      // 3. Insufficient depth
+      if (phase === 'BOTTOM' && avgKneeAngle > 100) {
+        errorCodes.push('shallow');
+        if (!feedback) { feedback = '下蹲不够深，大腿至少平行地面'; feedbackType = 'warn'; }
+      }
+      // 4. Knee-first pattern (bending knees without hip hinge)
+      if (phase === 'DESCENDING' && hipKneeRatio < 0.3 && avgKneeAngle < 130 && avgHipAngle > 100) {
+        errorCodes.push('knee_first');
+        if (!feedback) { feedback = '先屈髋再屈膝！臀部向后坐，像坐椅子'; feedbackType = 'warn'; }
+      }
+      // 5. Hip not below knee at bottom (insufficient hip flexion)
+      if (phase === 'BOTTOM' && !hipBelowKnee && avgKneeAngle < 100) {
+        errorCodes.push('hip_high');
+        if (!feedback) { feedback = '屈髋不足，髋部应低于膝盖'; feedbackType = 'warn'; }
+      }
+
+      // Track errors
+      errorCodes.forEach(c => { formErrors.squat[c] = (formErrors.squat[c] || 0) + 1; });
+
+      // Rep completed
+      const repCompleted = prevState?.phase === 'ASCENDING' && phase === 'UP';
+      if (repCompleted && !feedback) {
+        feedback = '✓ 动作标准';
+        feedbackType = 'good';
+      }
+
+      return {
+        phase, debounce, debounceTarget,
+        kneeAngle: avgKneeAngle, hipAngle: avgHipAngle,
+        torsoLean, leftValgus, rightValgus, hipBelowKnee, hipKneeRatio,
+        feedback, feedbackType, repCompleted, errorCodes
+      };
+    },
+    // Generate post-session improvement suggestions
+    getSuggestions() {
+      const errs = formErrors.squat;
+      const suggestions = [];
+      if (errs.knee_valgus) suggestions.push('🔴 膝内扣：加强臀中肌（蚌式开合、弹力带侧走），深蹲时想象"撑开地板"');
+      if (errs.knee_first) suggestions.push('🟡 先屈膝后屈髋：练习箱式深蹲建立"坐椅子"模式，髋膝踝同时折叠');
+      if (errs.torso_lean) suggestions.push('🟡 躯干过度前倾：加强核心和背部力量，下蹲时保持挺胸');
+      if (errs.shallow) suggestions.push('🟡 深度不足：改善踝关节灵活度，尝试高脚杯深蹲辅助平衡');
+      if (errs.hip_high) suggestions.push('🟡 屈髋不足：练习髋铰链动作（早安式），增强屈髋意识');
+      if (!suggestions.length) suggestions.push('✅ 深蹲形态良好，继续保持！可逐步增加负重。');
+      return suggestions;
+    }
+  },
+
+  curl: {
+    name: '哑铃弯举',
+    targets: {
+      elbowTop: 45,      // elbow should flex to at least this
+      elbowBottom: 155,  // elbow should extend to at least this
+      driftMax: 0.25,    // max elbow drift ratio
+      shoulderFlexMax: 0.12, // max shoulder flexion during curl
+    },
+    analyze(keypoints, prevState) {
+      const rs = keypoints[KP.RIGHT_SHOULDER];
+      const re = keypoints[KP.RIGHT_ELBOW];
+      const rw = keypoints[KP.RIGHT_WRIST];
+      const rh = keypoints[KP.RIGHT_HIP];
+
+      const s = rs, e = re, w = rw;
+      if (!s || !e || !w) return null;
+      if ([s,e,w].some(k => k.score < 0.3)) return null;
+
+      const elbowAngle = angleBetween(s, e, w);
+      // Elbow drift: horizontal movement of elbow relative to shoulder (should stay fixed)
+      const elbowDrift = Math.abs(e.x - s.x) / Math.max(1, Math.abs(e.y - s.y));
+      // Shoulder flexion: is the upper arm moving forward? (should stay vertical)
+      const shoulderFlex = rh ? Math.abs(e.y - rh.y) / Math.max(1, Math.abs(s.y - rh.y)) : 0;
+
+      let rawPhase;
+      if (elbowAngle > this.targets.elbowBottom) rawPhase = 'DOWN';
+      else if (elbowAngle < this.targets.elbowTop) rawPhase = 'UP';
+      else if (!prevState || prevState.phase === 'DOWN' || prevState.phase === 'CURLING') rawPhase = 'CURLING';
+      else rawPhase = 'RELEASING';
+
+      const prevDebounceTarget = prevState?.debounceTarget;
+      let phase = prevState?.phase || 'DOWN';
+      let debounce = (prevDebounceTarget === rawPhase) ? (prevState?.debounce || 0) + 1 : 1;
+      if (debounce >= DEBOUNCE_FRAMES) { phase = rawPhase; debounce = 0; }
+      const debounceTarget = rawPhase;
+
+      let feedback = null, feedbackType = '', errorCodes = [];
+
+      // 1. Elbow drifting forward (shoulder compensation)
+      if (elbowDrift > this.targets.driftMax && phase === 'CURLING') {
+        errorCodes.push('elbow_drift');
+        feedback = '肘部前移了！上臂贴紧身体两侧不动';
+        feedbackType = 'warn';
+      }
+      // 2. Using shoulder swing (body english)
+      if (shoulderFlex > this.targets.shoulderFlexMax && phase === 'CURLING') {
+        errorCodes.push('shoulder_swing');
+        if (!feedback) { feedback = '不要借力甩动！只移动前臂，身体保持稳定'; feedbackType = 'bad'; }
+      }
+      // 3. Partial ROM — not extending fully
+      if (phase === 'DOWN' && elbowAngle < 145 && prevState?.phase === 'RELEASING') {
+        errorCodes.push('partial_extension');
+        if (!feedback) { feedback = '手臂未完全伸展，每次下放到底'; feedbackType = 'warn'; }
+      }
+      // 4. Partial ROM — not curling fully
+      if (phase === 'UP' && elbowAngle > 60) {
+        errorCodes.push('partial_flexion');
+        if (!feedback) { feedback = '弯举不到位，肘关节应屈曲至约45°'; feedbackType = 'warn'; }
+      }
+
+      errorCodes.forEach(c => { formErrors.curl[c] = (formErrors.curl[c] || 0) + 1; });
+
+      const repCompleted = prevState?.phase === 'RELEASING' && phase === 'DOWN';
+      if (repCompleted && !feedback) { feedback = '✓ 动作标准'; feedbackType = 'good'; }
+
+      return {
+        phase, debounce, debounceTarget,
+        elbowAngle, elbowDrift, shoulderFlex,
+        feedback, feedbackType, repCompleted, errorCodes
+      };
+    },
+    getSuggestions() {
+      const errs = formErrors.curl;
+      const suggestions = [];
+      if (errs.elbow_drift) suggestions.push('🟡 肘部前移：上臂始终贴紧身体，只移动前臂，减轻重量感受孤立发力');
+      if (errs.shoulder_swing) suggestions.push('🔴 借力甩动：降低重量，靠墙做弯举消除身体晃动，控制离心（慢下快上）');
+      if (errs.partial_extension) suggestions.push('🟡 手臂未完全伸展：每次下放至肘部近乎伸直，保持全程张力');
+      if (errs.partial_flexion) suggestions.push('🟡 弯举幅度不足：顶峰收缩时前臂尽量靠近肱二头肌');
+      if (!suggestions.length) suggestions.push('✅ 弯举形态良好！注意控制节奏（2秒上1秒下），可逐步增加重量。');
+      return suggestions;
+    }
+  },
+
+  press: {
+    name: '肩上推举',
+    targets: {
+      elbowBottom: 80,   // bottom position elbow angle
+      elbowTop: 160,     // top position elbow angle
+      elbowFlareMax: 0.7, // elbow should not flare to 90° (1.0 = fully flared)
+    },
+    analyze(keypoints, prevState) {
+      const rs = keypoints[KP.RIGHT_SHOULDER];
+      const re = keypoints[KP.RIGHT_ELBOW];
+      const rw = keypoints[KP.RIGHT_WRIST];
+      const lh = keypoints[KP.LEFT_HIP];
+      const rh = keypoints[KP.RIGHT_HIP];
+
+      const s = rs, e = re, w = rw;
+      if (!s || !e || !w) return null;
+      if ([s,e,w].some(k => k.score < 0.3)) return null;
+
+      const elbowAngle = angleBetween(s, e, w);
+      const wristAboveShoulder = w.y < s.y - 8;
+
+      // Elbow flare: how far is elbow from the body's sagittal plane?
+      // elbow.x vs shoulder.x — big difference = flared elbows
+      const elbowFlare = lh && rh ? Math.abs(e.x - s.x) / Math.max(1, Math.abs(lh.x - rh.x) * 0.5) : 0;
+
+      // Back arch detection: wrist should be ABOVE shoulder at top
+      const wristOverhead = w.y < s.y - 30;
+
+      let rawPhase;
+      if (elbowAngle > this.targets.elbowTop && wristAboveShoulder) rawPhase = 'UP';
+      else if (elbowAngle < this.targets.elbowBottom) rawPhase = 'BOTTOM';
+      else if (!prevState || prevState.phase === 'UP' || prevState.phase === 'DESCENDING') rawPhase = 'DESCENDING';
+      else rawPhase = 'ASCENDING';
+
+      const prevDebounceTarget = prevState?.debounceTarget;
+      let phase = prevState?.phase || 'UP';
+      let debounce = (prevDebounceTarget === rawPhase) ? (prevState?.debounce || 0) + 1 : 1;
+      if (debounce >= DEBOUNCE_FRAMES) { phase = rawPhase; debounce = 0; }
+      const debounceTarget = rawPhase;
+
+      let feedback = null, feedbackType = '', errorCodes = [];
+
+      // 1. Flared elbows (dangerous for shoulder impingement)
+      if (elbowFlare > this.targets.elbowFlareMax && (phase === 'BOTTOM' || phase === 'DESCENDING')) {
+        errorCodes.push('elbow_flare');
+        feedback = '肘部过度外展！保持肘部在前方30-45°（肩胛面）';
+        feedbackType = 'bad';
+      }
+      // 2. Partial press — not locking out
+      if (phase === 'UP' && elbowAngle < 150) {
+        errorCodes.push('partial_lockout');
+        if (!feedback) { feedback = '未完全推起，手臂应推直至耳朵两侧'; feedbackType = 'warn'; }
+      }
+      // 3. Shallow bottom position
+      if (phase === 'BOTTOM' && elbowAngle > 100) {
+        errorCodes.push('shallow_bottom');
+        if (!feedback) { feedback = '下放不够低，肘部应降至约90°'; feedbackType = 'warn'; }
+      }
+
+      errorCodes.forEach(c => { formErrors.press[c] = (formErrors.press[c] || 0) + 1; });
+
+      const repCompleted = prevState?.phase === 'ASCENDING' && phase === 'UP';
+      if (repCompleted && !feedback) { feedback = '✓ 动作标准'; feedbackType = 'good'; }
+
+      return {
+        phase, debounce, debounceTarget,
+        elbowAngle, elbowFlare, wristOverhead,
+        feedback, feedbackType, repCompleted, errorCodes
+      };
+    },
+    getSuggestions() {
+      const errs = formErrors.press;
+      const suggestions = [];
+      if (errs.elbow_flare) suggestions.push('🔴 肘部外展过大：推举时肘部保持在前方可见位置（肩胛面30-45°），避免"稻草人"姿势导致肩峰撞击');
+      if (errs.partial_lockout) suggestions.push('🟡 未完全锁定：每次推至手臂伸直，肱二头肌靠近耳朵，充分激活三角肌');
+      if (errs.shallow_bottom) suggestions.push('🟡 下放幅度不足：控制下落至肘部约90°，增加动作行程');
+      if (!suggestions.length) suggestions.push('✅ 推举形态良好！注意保持核心收紧（肋骨下沉），避免过度弓腰。');
+      return suggestions;
+    }
+  }
+};
+
+// Phase display names
+const PhaseNames = {
+  squat: { UP: '直立', DESCENDING: '下蹲中', BOTTOM: '底部', ASCENDING: '上升中' },
+  curl: { DOWN: '下垂', CURLING: '弯举中', UP: '顶峰', RELEASING: '下放中' },
+  press: { UP: '推起', DESCENDING: '下落中', BOTTOM: '底部', ASCENDING: '推举中' }
+};
+
+// Error code to readable name
+const ErrorNames = {
+  squat: { knee_valgus:'膝内扣', torso_lean:'躯干前倾', shallow:'深度不足', knee_first:'先屈膝', hip_high:'屈髋不足' },
+  curl: { elbow_drift:'肘部前移', shoulder_swing:'借力甩动', partial_extension:'未充分伸展', partial_flexion:'弯举不足' },
+  press: { elbow_flare:'肘部外展', partial_lockout:'未锁定', shallow_bottom:'下放不足' }
+};
+
+// Reset form error counters
+function resetFormErrors() {
+  formErrors.squat = {}; formErrors.curl = {}; formErrors.press = {};
+}
+
+// ==================== Analysis Loop ====================
+let prevAnalysis = null;
+let noPersonFrames = 0;
+let debugInfo = {};
+
+function updateDebug() {
+  const el = document.getElementById('debugStatus');
+  if (!el) return;
+  const info = [];
+  info.push('源: ' + S.videoSource);
+  info.push('运行: ' + (S.isRunning ? '是' : '否'));
+  info.push('模型: ' + (S.detector ? '就绪' : '未加载'));
+  info.push('视频就绪: ' + videoEl.readyState + '/4');
+  info.push('视频暂停: ' + (videoEl.paused ? '是' : '否'));
+  info.push('尺寸: ' + (videoEl.videoWidth || '?') + 'x' + (videoEl.videoHeight || '?'));
+  info.push('画面帧: ' + (noPersonFrames || 0));
+  info.push('计数: ' + S.repCount);
+  Object.entries(debugInfo).forEach(([k, v]) => { info.push(k + ': ' + v); });
+  el.textContent = info.join(' | ');
+  el.style.display = 'block';
+}
+
+async function detectionLoop() {
+  if (!S.isRunning) return;
+  if (!S.detector) {
+    updateDebug();
+    S.animFrame = requestAnimationFrame(detectionLoop); return;
+  }
+
+  // For video files, check if video has ended
+  if (S.videoSource !== 'camera' && videoEl.ended && !S.videoLoop) {
+    stopAnalysis();
+    return;
+  }
+
+  const shouldDetect = S.videoSource === 'camera' ? (S.cameraStream && !videoEl.paused) : (videoEl.readyState >= 2);
+  debugInfo['应检测'] = shouldDetect ? '是' : '否(' + (S.videoSource === 'camera' ? 'cam' : 'readyState='+videoEl.readyState) + ')';
+
+  try {
+    if (shouldDetect) {
+      debugInfo['推理中'] = '是';
+      const poses = await S.detector.estimatePoses(videoEl, {
+        maxPoses: 1,
+        flipHorizontal: false,
+      });
+
+      ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
+
+      if (poses.length > 0 && poses[0].keypoints) {
+        const kp = poses[0].keypoints;
+        // Check if any key torso keypoints are actually detected
+        const hasTorso = kp[KP.LEFT_SHOULDER].score > 0.2 || kp[KP.RIGHT_SHOULDER].score > 0.2;
+        const hasHip = kp[KP.LEFT_HIP].score > 0.2 || kp[KP.RIGHT_HIP].score > 0.2;
+
+        if (hasTorso || hasHip) {
+          noPersonFrames = 0;
+          drawSkeleton(kp);
+          drawKeypoints(kp);
+
+          const exercise = document.getElementById('exerciseSelect').value;
+          const analyzer = ExerciseAnalyzers[exercise];
+          const result = analyzer.analyze(kp, prevAnalysis);
+
+          if (result) {
+            prevAnalysis = result;
+            const phaseName = (PhaseNames[exercise] || {})[result.phase] || result.phase;
+            phaseEl.textContent = phaseName;
+
+            if (result.repCompleted) {
+              S.repCount++;
+              repCounterEl.textContent = S.repCount;
+              playBeep();
+            }
+
+            showFeedback(result.feedback, result.feedbackType);
+
+            const parts = [];
+            if (result.kneeAngle !== undefined) parts.push('膝' + Math.round(result.kneeAngle) + '°');
+            if (result.hipAngle !== undefined) parts.push('髋' + Math.round(result.hipAngle) + '°');
+            if (result.elbowAngle !== undefined) parts.push('肘' + Math.round(result.elbowAngle) + '°');
+            if (parts.length) phaseEl.textContent += ' · ' + parts.join(' ');
+          }
+        } else {
+          noPersonFrames++;
+          debugInfo['姿态'] = '关节不可见';
+          if (noPersonFrames === 1 || noPersonFrames % 60 === 0) {
+            phaseEl.textContent = '未检测到完整人体 · 请后退让全身入镜';
+          }
+        }
+      } else {
+        noPersonFrames++;
+        debugInfo['姿态'] = '无人(' + noPersonFrames + ')';
+        if (noPersonFrames === 1 || noPersonFrames % 60 === 0) {
+          phaseEl.textContent = noPersonFrames < 10 ? '检测中...' : '未检测到人体 · 请确保光线充足全身可见';
+        }
+      }
+    } else if (S.videoSource !== 'camera') {
+      phaseEl.textContent = '视频未就绪 · 点击视频画面播放';
+      debugInfo['视频'] = '未播放/未就绪';
+    }
+
+    updateVideoTime();
+    delete debugInfo['推理中'];
+  } catch (e) {
+    console.warn('Detection frame error:', e.message);
+    phaseEl.textContent = '检测出错 · ' + e.message;
+    debugInfo['错误'] = e.message;
+  }
+
+  updateDebug();
+  S.animFrame = requestAnimationFrame(detectionLoop);
+}
+
+function drawKeypoints(keypoints) {
+  for (const kp of keypoints) {
+    if (kp.score < 0.3) continue;
+    ctx.beginPath();
+    ctx.arc(kp.x, kp.y, 5, 0, 2 * Math.PI);
+    ctx.fillStyle = '#6c5ce7';
+    ctx.fill();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+}
+
+function drawSkeleton(keypoints) {
+  ctx.strokeStyle = '#a29bfe';
+  ctx.lineWidth = 2.5;
+  ctx.lineCap = 'round';
+  for (const [a, b] of SKELETON) {
+    const ka = keypoints[a], kb = keypoints[b];
+    if (!ka || !kb || ka.score < 0.3 || kb.score < 0.3) continue;
+    ctx.beginPath();
+    ctx.moveTo(ka.x, ka.y);
+    ctx.lineTo(kb.x, kb.y);
+    ctx.stroke();
+  }
+}
+
+function showFeedback(msg, type) {
+  if (S.feedbackTimer) clearTimeout(S.feedbackTimer);
+  const el = feedbackEl;
+  el.style.display = msg ? 'block' : 'none';
+  el.textContent = msg || '';
+  el.className = 'form-feedback ' + (type || '');
+  if (msg) {
+    S.feedbackTimer = setTimeout(() => { el.style.display = 'none'; }, 1500);
+  }
+}
+
+// Audio feedback
+function playBeep() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.frequency.setValueAtTime(800, ctx.currentTime);
+    osc.frequency.setValueAtTime(1200, ctx.currentTime + 0.1);
+    gain.gain.setValueAtTime(0.15, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+    osc.start(); osc.stop(ctx.currentTime + 0.2);
+  } catch(e) {}
+}
+
+// Speak feedback (Chinese)
+function speak(text) {
+  if (!('speechSynthesis' in window)) return;
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'zh-CN'; u.rate = 1.1; u.volume = 0.8;
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(u);
+}
+
+// ==================== Start / Stop ====================
+async function startAnalysis() {
+  const btnStart = document.getElementById('btnStart');
+  const btnStop = document.getElementById('btnStop');
+  btnStart.disabled = true;
+  debugInfo['步骤'] = '开始';
+  updateDebug();
+  try {
+    if (!S.detector) {
+      debugInfo['步骤'] = '加载模型中';
+      updateDebug();
+      await loadModel();
+      if (!S.detector) {
+        debugInfo['步骤'] = '模型加载失败';
+        updateDebug();
+        btnStart.disabled = false;
+        return;
+      }
+    }
+
+    if (S.videoSource === 'camera') {
+      debugInfo['步骤'] = '启动摄像头';
+      updateDebug();
+      await startCamera();
+    } else {
+      debugInfo['步骤'] = '加载视频';
+      updateDebug();
+      await startVideoPlayback();
+    }
+
+    debugInfo['步骤'] = '运行中';
+    S.isRunning = true;
+    S.repCount = 0;
+    prevAnalysis = null;
+    noPersonFrames = 0;
+    resetFormErrors();
+    repCounterEl.textContent = '0';
+    phaseEl.textContent = '准备开始';
+    document.getElementById('suggestionBox').style.display = 'none';
+    btnStop.disabled = false;
+    detectionLoop();
+    const exercise = document.getElementById('exerciseSelect').value;
+    speak(ExerciseAnalyzers[exercise].name + '，开始');
+  } catch (e) {
+    btnStart.disabled = false;
+    debugInfo['错误'] = e.message;
+    console.error('Start failed:', e);
+    updateDebug();
+    phaseEl.textContent = '启动失败: ' + e.message;
+  }
+}
+
+function stopAnalysis() {
+  S.isRunning = false;
+  if (S.animFrame) { cancelAnimationFrame(S.animFrame); S.animFrame = null; }
+  stopCamera();
+  ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
+  document.getElementById('btnStart').disabled = false;
+  document.getElementById('btnStop').disabled = true;
+  phaseEl.textContent = '已停止';
+  showFeedback(null, '');
+
+  // Save to log
+  if (S.repCount > 0) {
+    const exercise = document.getElementById('exerciseSelect').value;
+    const name = ExerciseAnalyzers[exercise].name;
+    saveLog(name, S.repCount);
+    speak(`完成，共${S.repCount}次`);
+    // Show improvement suggestions
+    showSuggestions(exercise);
+  }
+}
+
+function showSuggestions(exercise) {
+  const analyzer = ExerciseAnalyzers[exercise];
+  const suggestions = analyzer.getSuggestions();
+  const errs = formErrors[exercise];
+  const errNames = ErrorNames[exercise];
+
+  let html = '';
+
+  // Show error summary
+  const totalErrors = Object.values(errs).reduce((a, b) => a + b, 0);
+  if (totalErrors > 0) {
+    html += '<div style="font-size:13px;color:var(--text2);margin-bottom:12px">本次训练检测到以下问题（共' + totalErrors + '次）：</div>';
+    for (const [code, count] of Object.entries(errs)) {
+      const name = errNames[code] || code;
+      html += '<div class="s-review-item"><span>' + name + '</span><span class="s-error-count">' + count + '次</span></div>';
+    }
+  }
+
+  // Show improvement suggestions
+  html += '<div style="margin-top:12px;font-weight:600;font-size:14px;margin-bottom:8px">💡 改进建议：</div>';
+  suggestions.forEach(s => {
+    const cls = s.startsWith('🔴') ? 's-item' : s.startsWith('✅') ? 's-item s-good' : 's-item';
+    html += '<div class="' + cls + '">' + s + '</div>';
+  });
+
+  document.getElementById('suggestionBody').innerHTML = html;
+  document.getElementById('suggestionBox').style.display = 'block';
+}
+
+function resetCounter() {
+  S.repCount = 0;
+  repCounterEl.textContent = '0';
+  prevAnalysis = null;
+  resetFormErrors();
+  phaseEl.textContent = '准备开始';
+  showFeedback(null, '');
+  document.getElementById('suggestionBox').style.display = 'none';
+}
+
+// ==================== Training Log ====================
+function saveLog(exercise, reps) {
+  const logs = JSON.parse(localStorage.getItem('fitkit_logs') || '[]');
+  logs.unshift({
+    exercise,
+    reps,
+    date: new Date().toISOString(),
+    id: Date.now()
+  });
+  // Keep last 100 entries
+  if (logs.length > 100) logs.length = 100;
+  localStorage.setItem('fitkit_logs', JSON.stringify(logs));
+}
+
+function renderLogs() {
+  const logs = JSON.parse(localStorage.getItem('fitkit_logs') || '[]');
+  const container = document.getElementById('logList');
+  if (logs.length === 0) {
+    container.innerHTML = '<div class="log-empty">暂无训练记录，去完成一次视频分析吧</div>';
+    return;
+  }
+  container.innerHTML = logs.slice(0, 50).map(log => {
+    const d = new Date(log.date);
+    const ds = `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    return `<div class="log-entry">
+      <div class="log-info"><h4>${log.exercise}</h4><span>${ds}</span></div>
+      <div class="log-stats">${log.reps} 次</div>
+    </div>`;
+  }).join('');
+}
+
+function clearLogs() {
+  if (confirm('确定要清空所有训练记录吗？此操作不可撤销。')) {
+    localStorage.removeItem('fitkit_logs');
+    renderLogs();
+  }
+}
+
+// ==================== Interval Timer ====================
+function startTimer() {
+  if (S.timerRunning) return;
+  const work = parseInt(document.getElementById('workTime').value) || 30;
+  const rest = parseInt(document.getElementById('restTime').value) || 15;
+  const rounds = parseInt(document.getElementById('rounds').value) || 5;
+  S.totalRounds = rounds;
+  S.currentRound = 1;
+  S.timerPhase = 'work';
+  S.timerRemaining = work;
+  S.workTime = work;
+  S.restTime = rest;
+  S.timerRunning = true;
+  updateTimerDisplay();
+  updateTimerInfo();
+  document.getElementById('timerPhase').textContent = '🔴 训练';
+  S.timerInterval = setInterval(tickTimer, 1000);
+}
+
+function tickTimer() {
+  S.timerRemaining--;
+  if (S.timerRemaining <= 0) {
+    // Switch phase
+    if (S.timerPhase === 'work') {
+      // End of work, start rest (or finish if last round)
+      if (S.currentRound >= S.totalRounds) {
+        finishTimer();
+        return;
+      }
+      S.timerPhase = 'rest';
+      S.timerRemaining = S.restTime;
+      document.getElementById('timerPhase').textContent = '🟢 休息';
+    } else {
+      // End of rest, start next work round
+      S.currentRound++;
+      S.timerPhase = 'work';
+      S.timerRemaining = S.workTime;
+      document.getElementById('timerPhase').textContent = '🔴 训练';
+    }
+    speak(S.timerPhase === 'work' ? '开始训练' : '休息');
+  }
+  updateTimerDisplay();
+  updateTimerInfo();
+}
+
+function pauseTimer() {
+  S.timerRunning = false;
+  clearInterval(S.timerInterval);
+}
+
+function resetTimer() {
+  S.timerRunning = false;
+  clearInterval(S.timerInterval);
+  S.currentRound = 0;
+  S.timerRemaining = 0;
+  document.getElementById('timerDisplay').textContent = '00:00';
+  document.getElementById('timerPhase').textContent = '准备';
+  document.getElementById('timerRoundInfo').textContent = '';
+}
+
+function finishTimer() {
+  clearInterval(S.timerInterval);
+  S.timerRunning = false;
+  document.getElementById('timerDisplay').textContent = '00:00';
+  document.getElementById('timerPhase').textContent = '✅ 完成!';
+  document.getElementById('timerRoundInfo').textContent = '';
+  speak('训练完成，辛苦了');
+}
+
+function updateTimerDisplay() {
+  const m = Math.floor(S.timerRemaining / 60);
+  const s = S.timerRemaining % 60;
+  document.getElementById('timerDisplay').textContent =
+    String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+}
+
+function updateTimerInfo() {
+  document.getElementById('timerRoundInfo').textContent =
+    `第 ${S.currentRound}/${S.totalRounds} 轮`;
+}
+
+// Reset analysis when switching exercises
+document.getElementById('exerciseSelect').addEventListener('change', () => {
+  prevAnalysis = null;
+  if (S.isRunning) {
+    S.repCount = 0;
+    repCounterEl.textContent = '0';
+    phaseEl.textContent = '准备开始';
+    showFeedback(null, '');
+  }
+});
+
+// ==================== Init ====================
+async function init() {
+  updateDebug();
+  loadModel().catch(e => console.warn('Model preload failed:', e));
+  renderLogs();
+}
+
+init();
+</script>
+
+</body>
+</html>

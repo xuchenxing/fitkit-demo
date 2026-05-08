@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FitKit 测试套件</title>
+<style>
+:root { --bg:#0f1117; --surface:#1a1d27; --surface2:#242836; --border:#2e3345; --text:#e8eaf0; --text2:#9aa0b4; --green:#00d2a0; --red:#ff5e5e; --yellow:#ffc048; --accent:#6c5ce7; }
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:var(--bg); color:var(--text); font-family:system-ui,sans-serif; padding:32px; }
+h1 { font-size:24px; margin-bottom:8px; }
+h2 { font-size:16px; color:var(--text2); margin-bottom:24px; }
+.suite { margin-bottom:24px; }
+.suite-title { font-size:16px; font-weight:700; padding:12px 16px; background:var(--surface); border-radius:10px 10px 0 0; border:1px solid var(--border); }
+.test-case { padding:10px 16px; border:1px solid var(--border); border-top:none; background:var(--surface); font-size:13px; display:flex; align-items:center; gap:10px; }
+.test-case:last-child { border-radius:0 0 10px 10px; }
+.test-case .name { flex:1; }
+.test-case .result { padding:3px 10px; border-radius:6px; font-weight:600; font-size:12px; }
+.test-case .pass { background:rgba(0,210,160,0.15); color:var(--green); }
+.test-case .fail { background:rgba(255,94,94,0.15); color:var(--red); }
+.summary { margin-top:24px; padding:16px; background:var(--surface); border-radius:10px; border:1px solid var(--border); }
+.summary .total { font-size:18px; font-weight:700; }
+</style>
+</head>
+<body>
+
+<h1>🧪 FitKit 测试套件</h1>
+<h2>核心逻辑单元测试</h2>
+<div id="results"></div>
+<div class="summary" id="summary"></div>
+
+<script>
+// ========== TEST FRAMEWORK ==========
+const tests = [];
+let passed = 0, failed = 0;
+
+function test(name, fn) {
+  try {
+    fn();
+    tests.push({ name, status: 'pass' });
+    passed++;
+  } catch (e) {
+    tests.push({ name, status: 'fail', error: e.message });
+    failed++;
+  }
+}
+
+function assert(cond, msg) { if (!cond) throw new Error(msg || 'assertion failed'); }
+function assertEqual(a, b, msg) { if (a !== b) throw new Error(msg || `expected ${b}, got ${a}`); }
+function assertClose(a, b, delta, msg) { if (Math.abs(a - b) > delta) throw new Error(msg || `expected ${b}±${delta}, got ${a}`); }
+
+// ========== CORE FUNCTIONS (copied from index.html) ==========
+function angleBetween(a, b, c) {
+  const ab = { x: a.x - b.x, y: a.y - b.y };
+  const cb = { x: c.x - b.x, y: c.y - b.y };
+  const dot = ab.x * cb.x + ab.y * cb.y;
+  const cross = ab.x * cb.y - ab.y * cb.x;
+  return Math.abs(Math.atan2(cross, dot) * 180 / Math.PI);
+}
+
+// ========== TESTS: angleBetween ==========
+test('直角(90°)', () => {
+  const a = { x: 0, y: 0 }, b = { x: 1, y: 0 }, c = { x: 1, y: 1 };
+  assertClose(angleBetween(a, b, c), 90, 0.01);
+});
+
+test('平角(180°)', () => {
+  const a = { x: 0, y: 0 }, b = { x: 1, y: 0 }, c = { x: 2, y: 0 };
+  assertClose(angleBetween(a, b, c), 180, 0.01);
+});
+
+test('锐角(45°)', () => {
+  const a = { x: 0, y: 1 }, b = { x: 1, y: 0 }, c = { x: 2, y: 0 };
+  assertClose(angleBetween(a, b, c), 45, 0.01);
+});
+
+test('零角(0°)', () => {
+  const a = { x: 0, y: 0 }, b = { x: 1, y: 0 }, c = { x: 1, y: 0 };
+  assertClose(angleBetween(a, b, c), 0, 0.01);
+});
+
+test('交换端点不影响角度', () => {
+  const a = { x: 0, y: 0 }, b = { x: 1, y: 0 }, c = { x: 1, y: 1 };
+  const ang1 = angleBetween(a, b, c);
+  const ang2 = angleBetween(c, b, a);
+  assertClose(ang1, ang2, 0.01);
+});
+
+// ========== TESTS: Squat Biomechanics ==========
+// Mock keypoints: 17 MoveNet keypoints with x,y,score
+function makeKP(overrides = {}) {
+  // Default: standing pose with full body visible
+  const defaults = {
+    5:  { x: 300, y: 100, score: 0.9 },  // left shoulder
+    6:  { x: 340, y: 100, score: 0.9 },  // right shoulder
+    7:  { x: 280, y: 180, score: 0.9 },  // left elbow
+    8:  { x: 360, y: 180, score: 0.9 },  // right elbow
+    9:  { x: 260, y: 260, score: 0.9 },  // left wrist
+    10: { x: 380, y: 260, score: 0.9 },  // right wrist
+    11: { x: 300, y: 240, score: 0.9 },  // left hip
+    12: { x: 340, y: 240, score: 0.9 },  // right hip
+    13: { x: 295, y: 360, score: 0.9 },  // left knee
+    14: { x: 345, y: 360, score: 0.9 },  // right knee
+    15: { x: 290, y: 480, score: 0.9 },  // left ankle
+    16: { x: 350, y: 480, score: 0.9 },  // right ankle
+  };
+  const kp = Array(17).fill(null).map(() => ({ x:0, y:0, score:0 }));
+  for (const [i, v] of Object.entries(defaults)) kp[Number(i)] = v;
+  for (const [i, v] of Object.entries(overrides)) kp[Number(i)] = { ...kp[Number(i)], ...v };
+  return kp;
+}
+
+test('深蹲-站立姿态膝角>150°', () => {
+  const kp = makeKP();
+  const lh = kp[11], lk = kp[13], la = kp[15];
+  const ang = angleBetween(lh, lk, la);
+  assert(ang > 150, `膝角应>150°(站立), 实际${ang.toFixed(0)}°`);
+});
+
+test('深蹲-底部姿态膝角<90°', () => {
+  // Simulate bottom of squat: knees bent, hips lowered
+  const kp = makeKP({
+    11: { x: 300, y: 320, score: 0.9 },  // hip lower
+    12: { x: 340, y: 320, score: 0.9 },
+    13: { x: 280, y: 400, score: 0.9 },  // knee forward
+    14: { x: 360, y: 400, score: 0.9 },
+  });
+  const lh = kp[11], lk = kp[13], la = kp[15];
+  const ang = angleBetween(lh, lk, la);
+  assert(ang < 90, `膝角应<90°(底部), 实际${ang.toFixed(0)}°`);
+});
+
+test('深蹲-膝内扣检测', () => {
+  // Simulate knee valgus: knee inside hip-ankle line
+  const kp = makeKP({
+    13: { x: 270, y: 360, score: 0.9 },  // knee valgus (inside)
+    14: { x: 370, y: 360, score: 0.9 },  // knee valgus
+  });
+  const lh = kp[11], lk = kp[13], la = kp[15];
+  const valgus = Math.abs((lk.x - lh.x) - (la.x - lh.x) * 0.5) / Math.max(1, Math.abs(lh.y - la.y));
+  assert(valgus > 0.12, `应检测到膝内扣, valgus=${valgus.toFixed(3)}`);
+});
+
+test('深蹲-正常膝盖轨迹', () => {
+  const kp = makeKP();
+  const lh = kp[11], lk = kp[13], la = kp[15];
+  const valgus = Math.abs((lk.x - lh.x) - (la.x - lh.x) * 0.5) / Math.max(1, Math.abs(lh.y - la.y));
+  assert(valgus < 0.12, `正常膝盖不应触发内扣, valgus=${valgus.toFixed(3)}`);
+});
+
+test('深蹲-深度不足检测(膝角>100°在底部)', () => {
+  const kp = makeKP({
+    11: { x: 300, y: 280, score: 0.9 },  // hip slightly lowered
+    12: { x: 340, y: 280, score: 0.9 },
+    13: { x: 293, y: 340, score: 0.9 },  // knee barely bent
+    14: { x: 347, y: 340, score: 0.9 },
+  });
+  const lh = kp[11], lk = kp[13], la = kp[15];
+  const ang = angleBetween(lh, lk, la);
+  assert(ang > 100, `浅蹲膝角应>100°, 实际${ang.toFixed(0)}°`);
+});
+
+// ========== TESTS: Curl Biomechanics ==========
+test('弯举-下垂姿态肘角>150°', () => {
+  const kp = makeKP({
+    10: { x: 380, y: 280, score: 0.9 },  // wrist lower (arm extended)
+  });
+  const s = kp[6], e = kp[8], w = kp[10];
+  const ang = angleBetween(s, e, w);
+  assert(ang > 150, `肘角应>150°(下垂), 实际${ang.toFixed(0)}°`);
+});
+
+test('弯举-顶峰姿态肘角<50°', () => {
+  const kp = makeKP({
+    10: { x: 360, y: 120, score: 0.9 },  // wrist near shoulder (flexed)
+  });
+  const s = kp[6], e = kp[8], w = kp[10];
+  const ang = angleBetween(s, e, w);
+  assert(ang < 50, `肘角应<50°(顶峰), 实际${ang.toFixed(0)}°`);
+});
+
+test('弯举-肘部漂移检测', () => {
+  const kp = makeKP({
+    8:  { x: 400, y: 180, score: 0.9 },  // elbow drifted forward
+  });
+  const s = kp[6], e = kp[8];
+  const drift = Math.abs(e.x - s.x) / Math.max(1, Math.abs(e.y - s.y));
+  assert(drift > 0.25, `应检测到肘部漂移, drift=${drift.toFixed(3)}`);
+});
+
+test('弯举-肘部稳定(正常)', () => {
+  const kp = makeKP();
+  const s = kp[6], e = kp[8];
+  const drift = Math.abs(e.x - s.x) / Math.max(1, Math.abs(e.y - s.y));
+  assert(drift < 0.25, `肘部稳定不应触发警告, drift=${drift.toFixed(3)}`);
+});
+
+// ========== TESTS: Press Biomechanics ==========
+test('推举-底部肘角<80°', () => {
+  const kp = makeKP({
+    10: { x: 360, y: 160, score: 0.9 },  // wrist near shoulder (bottom)
+  });
+  const s = kp[6], e = kp[8], w = kp[10];
+  const ang = angleBetween(s, e, w);
+  assert(ang < 80, `肘角应<80°(底部), 实际${ang.toFixed(0)}°`);
+});
+
+test('推举-锁定位肘角>160°且腕高于肩', () => {
+  const kp = makeKP({
+    10: { x: 360, y: 30, score: 0.9 },  // wrist above shoulder (locked out)
+  });
+  const s = kp[6], e = kp[8], w = kp[10];
+  const ang = angleBetween(s, e, w);
+  const wristAbove = w.y < s.y;
+  assert(ang > 160, `肘角应>160°(锁定), 实际${ang.toFixed(0)}°`);
+  assert(wristAbove, '手腕应在肩上方');
+});
+
+test('推举-肘部外展(肩胛面)检测', () => {
+  const kp = makeKP({
+    8:  { x: 420, y: 180, score: 0.9 },  // elbow flared wide
+  });
+  const s = kp[6], e = kp[8];
+  const flare = Math.abs(e.x - s.x) / 50; // simplified
+  assert(flare > 0.7, `应检测到肘外展, flare=${flare.toFixed(2)}`);
+});
+
+// ========== TESTS: Debounce Logic ==========
+test('debounce-相同phase累计帧数', () => {
+  const DEBOUNCE_FRAMES = 4;
+  let prevState = { phase: 'UP', debounceTarget: 'DESCENDING', debounce: 2 };
+  const rawPhase = 'DESCENDING';
+  const prevDebounceTarget = prevState.debounceTarget;
+  const debounce = (prevDebounceTarget === rawPhase) ? (prevState.debounce || 0) + 1 : 1;
+  assertEqual(debounce, 3, '相同phase应累加debounce');
+});
+
+test('debounce-不同phase重置计数', () => {
+  let prevState = { phase: 'UP', debounceTarget: 'DESCENDING', debounce: 3 };
+  const rawPhase = 'BOTTOM';
+  const prevDebounceTarget = prevState.debounceTarget;
+  const debounce = (prevDebounceTarget === rawPhase) ? (prevState.debounce || 0) + 1 : 1;
+  assertEqual(debounce, 1, '不同phase应重置debounce为1');
+});
+
+test('debounce-达到阈值切换phase', () => {
+  const DEBOUNCE_FRAMES = 4;
+  let phase = 'UP';
+  const debounce = 4;
+  const rawPhase = 'DESCENDING';
+  if (debounce >= DEBOUNCE_FRAMES) phase = rawPhase;
+  assertEqual(phase, 'DESCENDING', 'debounce>=4应切换phase');
+});
+
+// ========== TESTS: Hip-Knee Coordination (Squat) ==========
+test('深蹲-髋膝协同(正常)', () => {
+  // During descent, both hip and knee angles should decrease together
+  const prevState = { hipAngle: 170, kneeAngle: 170 };
+  const currHip = 140, currKnee = 120;
+  const ratio = (prevState.hipAngle - currHip) / Math.max(0.1, prevState.kneeAngle - currKnee);
+  assert(ratio > 0.3, `髋膝应协同, ratio=${ratio.toFixed(2)}`);
+});
+
+test('深蹲-先屈膝再屈髋(异常)', () => {
+  const prevState = { hipAngle: 170, kneeAngle: 170 };
+  const currHip = 160, currKnee = 120; // knee bends a lot, hip barely
+  const ratio = (prevState.hipAngle - currHip) / Math.max(0.1, prevState.kneeAngle - currKnee);
+  assert(ratio < 0.3, `应检测到膝优先模式, ratio=${ratio.toFixed(2)}`);
+});
+
+// ========== RENDER RESULTS ==========
+const resultsEl = document.getElementById('results');
+let suiteName = '';
+tests.forEach(t => {
+  if (!suiteName) { suiteName = t.name.split('-')[0]; }
+  resultsEl.innerHTML += `
+    <div class="test-case">
+      <span class="name">${t.name}</span>
+      <span class="result ${t.status === 'pass' ? 'pass' : 'fail'}">${t.status === 'pass' ? '✓ PASS' : '✗ FAIL'}</span>
+      ${t.error ? `<span style="font-size:11px;color:var(--red)">${t.error}</span>` : ''}
+    </div>`;
+});
+
+document.getElementById('summary').innerHTML = `
+  <div class="total">${passed + failed} 项测试 · <span style="color:var(--green)">${passed} 通过</span>${failed > 0 ? ` · <span style="color:var(--red)">${failed} 失败</span>` : ''}</div>
+  ${failed === 0 ? '<div style="color:var(--green);margin-top:8px">✅ 所有测试通过</div>' : '<div style="color:var(--red);margin-top:8px">⚠️ 有测试失败，请检查</div>'}
+`;
+</script>
+
+</body>
+</html>
